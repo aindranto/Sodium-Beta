@@ -1456,7 +1456,32 @@ const aiInput = el("aiInput");
 const aiSendBtn = el("aiSendBtn");
 
 function geminiKey() { return (localStorage.getItem("sodium.geminiKey") || "").trim(); }
-function geminiModel() { return localStorage.getItem("sodium.geminiModel") || "gemini-2.5-flash"; }
+// The model list mirrors the <optgroup>s in the settings select
+// (ui/index.html #aiModelSel): the "Gratis (Free Tier)" group first,
+// then the paid-only group. Google retires models for new API keys
+// (the whole 2.5 family now answers 404 to new users), so any
+// stored value outside this list is migrated to the default on
+// read — that migration is what makes an app update fix installs
+// that still carry a retired model name.
+const GEMINI_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-4-hydrogen",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite",
+  "gemini-4-carbon",
+  "gemini-4-argon",
+  "gemini-4-neon",
+  "gemini-3.1-pro-preview",
+];
+const GEMINI_DEFAULT_MODEL = "gemini-3.8-flash";
+function geminiModel() {
+  const saved = (localStorage.getItem("sodium.geminiModel") || "").trim();
+  if (GEMINI_MODELS.includes(saved)) return saved;
+  localStorage.setItem("sodium.geminiModel", GEMINI_DEFAULT_MODEL);
+  scheduleConfigSave();
+  return GEMINI_DEFAULT_MODEL;
+}
 
 function aiScrollBottom() { aiMsgs.scrollTop = aiMsgs.scrollHeight; }
 
@@ -1601,6 +1626,7 @@ async function callGemini() {
     const apiMsg = data && data.error && data.error.message ? data.error.message : "";
     let hint = "";
     if (res.status === 400 || res.status === 403) hint = " Periksa kunci API dan model di Pengaturan panel.";
+    else if (res.status === 404) hint = " Model ini tidak tersedia untuk kunci API kamu (mungkin sudah pensiun atau khusus berbayar). Pilih model lain di Pengaturan panel — untuk kunci Free Tier, pakai model grup Gratis.";
     else if (res.status === 429) hint = " Kuota gratis habis atau terlalu cepat — tunggu sebentar, lalu coba lagi.";
     throw new Error("Gemini menjawab HTTP " + res.status + (apiMsg ? ": " + apiMsg : ".") + hint);
   }

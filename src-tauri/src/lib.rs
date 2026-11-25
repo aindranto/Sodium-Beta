@@ -19,19 +19,10 @@ const LINKBAR_H: f64 = 40.0;
 /// it is not a service (no eviction, no profile-per-service rules).
 const POPUP_LABEL: &str = "link-popup";
 
-/// Width of the AI panel (Sodium Beta experiment): a webview docked
-/// to the right edge of the window, showing Muse or Gemini. While
-/// it is open, the service area shrinks by this much.
+/// Width reserved for the AI panel (Sodium Beta experiment): a
+/// native Gemini chat column the UI draws at the right edge of the
+/// window. While it is open, the service area shrinks by this much.
 const AI_PANEL_W: f64 = 380.0;
-
-/// Height of the AI panel header strip the UI draws directly under
-/// the top bar on the right (tabs + context button). The panel
-/// webview starts below it, so it never covers the header.
-const AI_HEADER_H: f64 = 40.0;
-
-/// Label of the AI panel webview. Not "service-"-prefixed on
-/// purpose: it is not a service (no eviction, its own profile).
-const AI_PANEL_LABEL: &str = "ai-panel";
 
 /// Label of the webview that renders Sodium's own UI inside the main window.
 const UI_LABEL: &str = "ui";
@@ -140,19 +131,6 @@ fn service_bounds(window: &tauri::Window, ai_open: bool) -> (LogicalPosition<f64
     (
         LogicalPosition::new(SIDEBAR_W, TOPBAR_H),
         LogicalSize::new(w - SIDEBAR_W, h - TOPBAR_H),
-    )
-}
-
-/// Bounds for the AI panel webview: docked to the right edge, below
-/// the top bar and the UI-drawn panel header strip.
-fn ai_panel_bounds(window: &tauri::Window) -> (LogicalPosition<f64>, LogicalSize<f64>) {
-    let size = logical_inner_size(window);
-    (
-        LogicalPosition::new((size.width - AI_PANEL_W).max(SIDEBAR_W), TOPBAR_H + AI_HEADER_H),
-        LogicalSize::new(
-            AI_PANEL_W.min((size.width - SIDEBAR_W).max(100.0)),
-            (size.height - TOPBAR_H - AI_HEADER_H).max(100.0),
-        ),
     )
 }
 
@@ -619,7 +597,6 @@ fn evict_down_to(app: &tauri::AppHandle, state: &AppState, target: usize) {
 fn set_services_visible(app: tauri::AppHandle, state: State<'_, AppState>, visible: bool) {
     let active = state.active.lock().unwrap().clone();
     let link_open = *state.link_open.lock().unwrap();
-    let ai_open = *state.ai_open.lock().unwrap();
     for wv in app.webviews().values() {
         if wv.label().starts_with("service-") {
             // "visible" means "panels closed": bring back only the active
@@ -632,15 +609,6 @@ fn set_services_visible(app: tauri::AppHandle, state: State<'_, AppState>, visib
             }
         } else if wv.label() == POPUP_LABEL {
             if visible && link_open {
-                let _ = wv.show();
-            } else {
-                let _ = wv.hide();
-            }
-        } else if wv.label() == AI_PANEL_LABEL {
-            // The AI panel is a native webview too: a UI modal would
-            // be covered by it, so it hides and returns together with
-            // the services (only while it is actually open).
-            if visible && ai_open {
                 let _ = wv.show();
             } else {
                 let _ = wv.hide();
@@ -899,11 +867,12 @@ fn set_adblock_enabled(state: State<'_, AppState>, enabled: bool) {
 }
 
 // ---------------------------------------------------------------------
-// AI panel (Sodium Beta only): a Muse / Gemini webview docked to
-// the right of the service area, plus the "screen context" bridge —
-// Sodium extracts the active service's visible text and injects it
-// into the panel's chat input, because a web page (Muse / Gemini)
-// cannot see inside another webview by itself.
+// AI panel (Sodium Beta only): a NATIVE Gemini chat drawn by the UI
+// itself in a right-hand column — there is no AI webview anymore.
+// Rust only reserves the layout space (ai_set_open) and provides
+// the "screen context" extraction: the active service's visible
+// text, which the UI attaches to the next Gemini API request,
+// because the Gemini API cannot see inside a service webview.
 // ---------------------------------------------------------------------
 
 /// Run a script in a webview via WebView2's ExecuteScript and wait
@@ -965,99 +934,19 @@ async fn run_script_with_result(
     Err("AI panel context bridge is Windows-only".into())
 }
 
-/// Open the AI panel on the given site (Muse or Gemini), or
-/// navigate the existing panel webview when the tab changes.
-/// Async for the same WebView2 reason as switch_service.
+/// Record whether the native AI panel is open and relayout the
+/// active service webview: the service area shrinks by AI_PANEL_W
+/// while the panel is open and returns to full width when it
+/// closes. The panel itself is pure UI — no webview is created.
 #[tauri::command]
-async fn ai_panel_open(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
-    url: String,
-) -> Result<(), String> {
-    if !valid_url(&url) {
-        return Err("invalid url".into());
-    }
-    let window = state
-        .main_window
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("main window missing")?;
-    let parsed = tauri::Url::parse(&url).map_err(|e| e.to_string())?;
-    *state.ai_open.lock().unwrap() = true;
-    if let Some(wv) = app.get_webview(AI_PANEL_LABEL) {
-        // Tab switch: reuse the one panel webview (a second live
-        // webview would double the panel's RAM cost). Compare hosts
-        // so re-clicking the active tab does not reload the chat.
-        let current = wv.url().ok();
-        if current.as_ref().and_then(|u| u.host_str()) != parsed.host_str() {
-            let _ = wv.navigate(parsed);
-        }
-        let (pos, size) = ai_panel_bounds(&window);
-        let _ = wv.set_position(pos);
-        let _ = wv.set_size(size);
-        let _ = wv.show();
-    } else {
-        // One profile for the panel itself, separate from every
-        // service profile: the Muse and Gemini logins both live
-        // here and persist across restarts.
-        let data_dir = app
-            .path()
-            .app_data_dir()
-            .map_err(|e| e.to_string())?
-            .join("profiles")
-            .join("ai-panel");
-        std::fs::create_dir_all(&data_dir).map_err(|e| e.to_string())?;
-        let app_for_links = app.clone();
-        let builder = WebviewBuilder::new(AI_PANEL_LABEL, WebviewUrl::External(parsed))
-            .data_directory(data_dir)
-            .disable_drag_drop_handler()
-            .on_new_window(move |u, _features| {
-                let _ = app_for_links.emit_to(UI_LABEL, "link-clicked", u.to_string());
-                NewWindowResponse::Deny
-            })
-            .on_download(make_download_handler(
-                app.clone(),
-                state.download_dir.clone(),
-                "ai-panel".to_string(),
-            ));
-        let (pos, size) = ai_panel_bounds(&window);
-        window
-            .add_child(builder, pos, size)
-            .map_err(|e| e.to_string())?;
-    }
+fn ai_set_open(app: tauri::AppHandle, state: State<'_, AppState>, open: bool) {
+    *state.ai_open.lock().unwrap() = open;
     relayout_active_service(&app, &state);
-    Ok(())
-}
-
-/// Close the AI panel: the webview is destroyed (not just hidden),
-/// so its RAM is fully released; the login survives in its profile.
-#[tauri::command]
-fn ai_panel_close(app: tauri::AppHandle, state: State<'_, AppState>) {
-    *state.ai_open.lock().unwrap() = false;
-    if let Some(wv) = app.get_webview(AI_PANEL_LABEL) {
-        let _ = wv.close();
-    }
-    relayout_active_service(&app, &state);
-}
-
-/// Show or hide the AI panel webview on its own. (UI modals go
-/// through set_services_visible, which handles the panel together
-/// with the services; this exists for direct control.)
-#[tauri::command]
-fn ai_panel_set_visible(app: tauri::AppHandle, visible: bool) {
-    if let Some(wv) = app.get_webview(AI_PANEL_LABEL) {
-        if visible {
-            let _ = wv.show();
-        } else {
-            let _ = wv.hide();
-        }
-    }
 }
 
 /// Extract the active service's visible text for the AI panel:
 /// page title + URL + innerText, assembled into the context block
-/// the UI injects (or shows for manual copy-paste).
+/// the UI attaches to the next Gemini request.
 #[tauri::command]
 async fn ai_extract_context(
     app: tauri::AppHandle,
@@ -1086,69 +975,11 @@ async fn ai_extract_context(
         title.to_string()
     };
     let mut out = format!("[Konteks layar Sodium — layanan: {name}, alamat: {url}]\n{text}");
-    // Keep the injected context a sane size for a chat prompt.
+    // Keep the attached context a sane size for a chat prompt.
     if out.chars().count() > 12000 {
         out = out.chars().take(12000).collect();
     }
     Ok(out)
-}
-
-/// The injector script run inside the AI panel page: finds the
-/// site's chat editor and inserts the context text there (never
-/// sends — the user adds their question and presses send). Returns
-/// true when an editor was found and filled, false otherwise; the
-/// UI then falls back to manual copy-paste.
-const AI_INJECTOR_JS: &str = r##"(function(){
-  var TEXT = __SODIUM_CONTEXT_JSON__;
-  function vis(el){ if(!el) return false; var r = el.getBoundingClientRect(); var st = getComputedStyle(el); return r.width > 40 && r.height > 10 && st.display !== "none" && st.visibility !== "hidden"; }
-  function largest(list){ var best = null, area = 0; list.forEach(function(el){ if(!vis(el)) return; var r = el.getBoundingClientRect(); var a = r.width * r.height; if(a > area){ area = a; best = el; } }); return best; }
-  function q(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); }
-  var host = location.hostname || "";
-  var el = null;
-  if(host.indexOf("muse.ai") >= 0){
-    el = document.querySelector('div.ProseMirror[contenteditable="true"]') || largest(q('div[contenteditable="true"]'));
-  } else if(host.indexOf("gemini.google.com") >= 0){
-    el = document.querySelector('rich-textarea div[contenteditable="true"]') || document.querySelector('div.ql-editor[contenteditable="true"]') || largest(q('div[contenteditable="true"]'));
-  }
-  if(!el) el = largest(q('div[contenteditable="true"]'));
-  var ta = null;
-  if(!el){ ta = largest(q("textarea")); }
-  try{
-    if(el){
-      el.focus();
-      document.execCommand("selectAll", false, null);
-      var ok = document.execCommand("insertText", false, TEXT);
-      if(!ok){ el.textContent = TEXT; el.dispatchEvent(new InputEvent("input", {bubbles:true})); }
-      return true;
-    }
-    if(ta){
-      ta.focus();
-      var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-      setter.call(ta, TEXT);
-      ta.dispatchEvent(new Event("input", {bubbles:true}));
-      return true;
-    }
-  }catch(e){ return false; }
-  return false;
-})()"##;
-
-/// Inject the extracted screen context into the AI panel's chat
-/// input. Ok(true) = filled; Ok(false) = no editor found (the UI
-/// shows the text for manual pasting instead).
-#[tauri::command]
-async fn ai_inject_context(
-    app: tauri::AppHandle,
-    text: String,
-) -> Result<bool, String> {
-    let Some(wv) = app.get_webview(AI_PANEL_LABEL) else {
-        return Err("Panel AI belum terbuka".into());
-    };
-    // serde_json::to_string produces a safely escaped JS string
-    // literal for arbitrary page text.
-    let literal = serde_json::to_string(&text).map_err(|e| e.to_string())?;
-    let script = AI_INJECTOR_JS.replace("__SODIUM_CONTEXT_JSON__", &literal);
-    let raw = run_script_with_result(wv, script).await?;
-    Ok(raw.trim() == "true")
 }
 
 /// Read the durable settings file (config.json), if it exists.
@@ -1311,11 +1142,8 @@ pub fn run() {
             import_config,
             set_adblock_script,
             set_adblock_enabled,
-            ai_panel_open,
-            ai_panel_close,
-            ai_panel_set_visible,
-            ai_extract_context,
-            ai_inject_context
+            ai_set_open,
+            ai_extract_context
         ])
         .on_window_event(|window, event| {
             if window.label() != "main" {
@@ -1368,10 +1196,6 @@ pub fn run() {
                         let (ppos, psize) = popup_bounds(window);
                         let _ = wv.set_position(ppos);
                         let _ = wv.set_size(psize);
-                    } else if wv.label() == AI_PANEL_LABEL {
-                        let (apos, asize) = ai_panel_bounds(window);
-                        let _ = wv.set_position(apos);
-                        let _ = wv.set_size(asize);
                     } else if wv.label().starts_with("service-") {
                         let _ = wv.set_position(pos);
                         let _ = wv.set_size(size);

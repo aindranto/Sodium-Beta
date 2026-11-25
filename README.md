@@ -2,7 +2,7 @@
 
 > Semua layanan sosial dan perpesanan Anda dalam satu tempat — **dengan cara yang ringan.**
 
-> **Ini build eksperimental (Beta).** Sodium Beta adalah salinan Sodium stabil dengan satu fitur uji coba: **panel AI** — Muse dan Gemini yang di-dock di sisi kanan jendela dan bisa *membaca layar layanan aktif* lewat tombol "Kirim konteks layar" (Sodium mengekstrak teks layanan yang sedang dibuka, lalu memasukkannya ke kotak chat AI; tidak pernah terkirim otomatis). Versi stabil tanpa panel AI ada di repo **[aindranto/Sodium](https://github.com/aindranto/Sodium)**.
+> **Ini build eksperimental (Beta).** Sodium Beta adalah salinan Sodium stabil dengan satu fitur uji coba: **panel AI native Gemini** — panel chat yang digambar langsung oleh UI Sodium di sisi kanan jendela (bukan halaman web yang ditempel), dengan otak **Gemini lewat API**. Panel ini perlu **kunci API Google AI Studio (gratis)** yang dimasukkan sekali di pengaturan panel. Lewat tombol konteks layar, teks layanan yang sedang dibuka bisa dilampirkan ke pesan berikutnya sebagai konteks. (Build beta pertama memakai panel web Muse/Gemini + injektor DOM; sejak 0.9.1 diganti native ini, dan Muse tetap bisa ditambah sebagai layanan biasa dari katalog.) Versi stabil tanpa panel AI ada di repo **[aindranto/Sodium](https://github.com/aindranto/Sodium)**.
 >
 > Sodium Beta **terpasang berdampingan** dengan Sodium stabil: nama, identifier (`id.sodium.beta`), folder data, dan kanal update-nya terpisah, jadi memasang beta ini tidak menimpa instalasi stabil Anda. Kalau panel AI-nya terbukti berguna, fiturnya akan di-porting ke repo utama; kalau tidak, repo ini berhenti di sini dan versi stabil tidak terpengaruh sama sekali.
 

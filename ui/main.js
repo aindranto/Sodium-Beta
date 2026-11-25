@@ -71,7 +71,7 @@ const store = {
 // side: localStorage is the working copy, but it dies with the
 // webview profile data; config.json survives that. Saves are
 // debounced and revisioned; at startup a newer config.json wins.
-const CFG_KEYS = ["sodium.services", "sodium.pinned", "sodium.disabled", "sodium.showNames", "sodium.lastActive", "sodium.onboarded", "sodium.zoom", "sodium.zoomByService", "sodium.maxAlive", "sodium.downloads", "sodium.lastUpdateCheck", "sodium.iconSize", "sodium.ytAdblock", "sodium.ytAdblockInfo", "sodium.ytAdblockScript", "sodium.aiTab"];
+const CFG_KEYS = ["sodium.services", "sodium.pinned", "sodium.disabled", "sodium.showNames", "sodium.lastActive", "sodium.onboarded", "sodium.zoom", "sodium.zoomByService", "sodium.maxAlive", "sodium.downloads", "sodium.lastUpdateCheck", "sodium.iconSize", "sodium.ytAdblock", "sodium.ytAdblockInfo", "sodium.ytAdblockScript", "sodium.geminiKey", "sodium.geminiModel"];
 let cfgRev = parseInt(localStorage.getItem("sodium.cfgRev") || "0", 10) || 0;
 let cfgTimer = null;
 let applyingConfig = false;
@@ -159,8 +159,7 @@ const dlPanel = el("dlPanel");
 const updatePanel = el("updatePanel");
 const quickPanel = el("quickPanel");
 const groupPanel = el("groupPanel");
-const aiCtxPanel = el("aiCtxPanel");
-const allPanels = [pickerPanel, ctxPanel, editPanel, adblockPanel, confirmPanel, managePanel, dlPanel, updatePanel, quickPanel, groupPanel, aiCtxPanel];
+const allPanels = [pickerPanel, ctxPanel, editPanel, adblockPanel, confirmPanel, managePanel, dlPanel, updatePanel, quickPanel, groupPanel];
 let ctxService = null;
 
 let lastFocus = null;
@@ -1438,95 +1437,218 @@ el("updateInstall").addEventListener("click", async () => {
   }
 });
 
-// AI panel (Sodium Beta experiment): a Muse / Gemini webview
-// docked at the right edge (Rust owns the webview; this side owns
-// the header strip, the tabs and the "screen context" bridge). One
-// webview is reused for both tabs — switching navigates it — so
-// the panel never costs two webviews of RAM. The context bridge
-// exists because an AI web page cannot see inside the service
-// webview: Rust extracts the active service's text and injects it
-// into the panel's chat input. Nothing is ever auto-sent.
-const AI_TABS = {
-  Muse: "https://muse.ai",
-  gemini: "https://gemini.google.com/app",
-};
+// AI panel (Sodium Beta experiment): a NATIVE Gemini chat drawn
+// by this UI in a fixed right-hand column — no AI webview at all.
+// Rust only reserves the layout space (ai_set_open shrinks the
+// service area while the panel is open) and extracts the active
+// service's visible text (ai_extract_context) for the optional
+// screen-context attachment. Replies come straight from the
+// Gemini API with the user's own AI Studio key (free tier);
+// history lives in memory for this session only, on purpose.
 let aiOpen = false;
-let aiTab = localStorage.getItem("sodium.aiTab") === "gemini" ? "gemini" : "Muse";
+let aiTurns = [];   // { role: "user" | "model", text } — payload texts
+let aiCtx = null;   // { title, url, text } while screen context is attached
+let aiBusy = false;
 
-function paintAiTabs() {
-  el("aiTabClaude").classList.toggle("on", aiTab === "Muse");
-  el("aiTabGemini").classList.toggle("on", aiTab === "gemini");
+const aiPanel = el("aiPanel");
+const aiMsgs = el("aiMsgs");
+const aiInput = el("aiInput");
+const aiSendBtn = el("aiSendBtn");
+
+function geminiKey() { return (localStorage.getItem("sodium.geminiKey") || "").trim(); }
+function geminiModel() { return localStorage.getItem("sodium.geminiModel") || "gemini-2.5-flash"; }
+
+function aiScrollBottom() { aiMsgs.scrollTop = aiMsgs.scrollHeight; }
+
+// Messages are rendered with textContent only — API replies are
+// never trusted as HTML.
+function aiAddMsg(role, text) {
+  const d = document.createElement("div");
+  d.className = "aiMsg " + role;
+  d.textContent = text;
+  aiMsgs.appendChild(d);
+  aiScrollBottom();
+  return d;
+}
+
+function paintAiBusy() {
+  const ready = !!geminiKey();
+  aiSendBtn.disabled = aiBusy || !ready;
+  aiInput.disabled = aiBusy || !ready;
+}
+
+// Without an API key the chat cannot work: the setup guide shows
+// in the panel and the input row stays disabled.
+function paintAiSetup() {
+  el("aiSetup").hidden = !!geminiKey();
+  paintAiBusy();
 }
 
 async function openAiPanel() {
-  paintAiTabs();
-  el("aiHead").hidden = false;
+  aiPanel.hidden = false;
   aiOpen = true;
-  try {
-    await invoke("ai_panel_open", { url: AI_TABS[aiTab] });
-  } catch {
-    el("aiHead").hidden = true;
-    aiOpen = false;
-    showToast("Panel AI gagal dibuka.");
-    return;
-  }
+  paintAiSetup();
+  try { await invoke("ai_set_open", { open: true }); } catch { /* relayout is best-effort */ }
   // One-time beta warning, the first time the panel is opened.
   if (!localStorage.getItem("sodium.aiBetaSeen")) {
     localStorage.setItem("sodium.aiBetaSeen", "1");
-    showToast("Panel AI masih BETA — fitur uji coba. Kalau bermasalah, cukup tutup panelnya; Sodium Beta terpisah dari Sodium stabil.");
+    showToast("Panel AI native Gemini masih BETA — fitur uji coba. Panel ini memakai kunci API Gemini (AI Studio, gratis); atur lewat ikon pengaturan di panel.");
   }
+  if (geminiKey()) aiInput.focus();
 }
 
 async function closeAiPanel() {
-  el("aiHead").hidden = true;
+  aiPanel.hidden = true;
   aiOpen = false;
-  try { await invoke("ai_panel_close"); } catch { /* panel already gone */ }
+  try { await invoke("ai_set_open", { open: false }); } catch { /* panel already closed */ }
 }
 
 el("aiBtn").addEventListener("click", () => { aiOpen ? closeAiPanel() : openAiPanel(); });
 el("aiCloseBtn").addEventListener("click", closeAiPanel);
-async function switchAiTab(tab) {
-  if (tab === aiTab && aiOpen) return;
-  aiTab = tab;
-  localStorage.setItem("sodium.aiTab", tab); scheduleConfigSave();
-  paintAiTabs();
-  if (aiOpen) {
-    try { await invoke("ai_panel_open", { url: AI_TABS[tab] }); } catch { /* keep the old page */ }
-  }
-}
-el("aiTabClaude").addEventListener("click", () => switchAiTab("Muse"));
-el("aiTabGemini").addEventListener("click", () => switchAiTab("gemini"));
 
+el("aiNewBtn").addEventListener("click", () => {
+  aiTurns = [];
+  aiMsgs.innerHTML = "";
+  detachAiCtx();
+  paintAiSetup();
+  aiInput.focus();
+});
+
+// --- Screen context attachment -------------------------------------
+// Rust's ai_extract_context returns one assembled string:
+// "[Konteks layar Sodium — layanan: <title>, alamat: <url>]\n<text>".
+// Split it back apart so the chip can name the source and the send
+// path can rebuild the payload in its own format.
+function parseAiContext(raw) {
+  const m = /^\[Konteks layar Sodium — layanan: (.*), alamat: ([^\]]*)\]\n([\s\S]*)$/.exec(raw || "");
+  if (!m) return { title: "Layanan aktif", url: "", text: String(raw || "") };
+  return { title: m[1] || "Layanan aktif", url: m[2] || "", text: m[3] || "" };
+}
+
+function paintAiChip() {
+  const chip = el("aiChip");
+  if (!aiCtx) { chip.hidden = true; return; }
+  el("aiChipText").textContent = "Konteks: " + aiCtx.title + " — " + aiCtx.text.length.toLocaleString("id-ID") + " karakter";
+  chip.hidden = false;
+}
+
+function detachAiCtx() {
+  aiCtx = null;
+  el("aiCtxBtn").classList.remove("on");
+  paintAiChip();
+}
+
+el("aiChipX").addEventListener("click", detachAiCtx);
 el("aiCtxBtn").addEventListener("click", async () => {
+  if (aiCtx) { detachAiCtx(); return; }  // the button is a toggle
   const btn = el("aiCtxBtn");
   btn.disabled = true;
   try {
-    const text = await invoke("ai_extract_context");
-    let injected = false;
-    try { injected = await invoke("ai_inject_context", { text }); } catch { injected = false; }
-    if (injected) {
-      showToast("Konteks layar dimasukkan ke panel — tambahkan pertanyaanmu lalu kirim.");
-    } else {
-      // Fallback: show the extracted text for manual copy-paste,
-      // so the feature degrades instead of dying when a site's
-      // editor changes shape.
-      el("aiCtxText").value = text;
-      await openPanel(aiCtxPanel);
-    }
+    aiCtx = parseAiContext(await invoke("ai_extract_context"));
+    btn.classList.add("on");
+    paintAiChip();
+    showToast("Konteks layar terlampir — ikut terkirim dengan pesan berikutnya.");
   } catch (err) {
     showToast(String(err || "Gagal mengambil konteks layar."));
   } finally {
     btn.disabled = false;
   }
 });
-el("aiCtxCopy").addEventListener("click", () => {
-  const t = el("aiCtxText");
-  t.focus();
-  t.select();
-  document.execCommand("copy");
-  showToast("Konteks disalin — tempel di panel AI dengan Ctrl+V.");
+
+// --- Settings -------------------------------------------------------
+function paintAiSettings() {
+  el("aiKeyInput").value = geminiKey();
+  el("aiModelSel").value = geminiModel();
+}
+el("aiSettingsBtn").addEventListener("click", () => {
+  const s = el("aiSettings");
+  s.hidden = !s.hidden;
+  if (!s.hidden) paintAiSettings();
 });
-el("aiCtxClose").addEventListener("click", closePanels);
+el("aiKeySave").addEventListener("click", () => {
+  localStorage.setItem("sodium.geminiKey", el("aiKeyInput").value.trim());
+  localStorage.setItem("sodium.geminiModel", el("aiModelSel").value);
+  scheduleConfigSave();
+  el("aiSettings").hidden = true;
+  paintAiSetup();
+  showToast("Pengaturan Gemini disimpan.");
+});
+function openAiStudio() {
+  invoke("open_external", { url: "https://aistudio.google.com/apikey" }).catch(() => {});
+}
+el("aiKeyLink").addEventListener("click", (e) => { e.preventDefault(); openAiStudio(); });
+el("aiSetupLink").addEventListener("click", openAiStudio);
+
+// --- Chat -----------------------------------------------------------
+async function callGemini() {
+  const contents = aiTurns.map(t => ({ role: t.role, parts: [{ text: t.text }] }));
+  let res;
+  try {
+    res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(geminiModel()) + ":generateContent", {
+      method: "POST",
+      headers: { "x-goog-api-key": geminiKey(), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: "Kamu adalah asisten AI di dalam aplikasi Sodium (pengelola banyak layanan web). Jawab dalam Bahasa Indonesia yang santai dan ringkas, kecuali pengguna memakai bahasa lain. Bila diberi konteks layar, anggap itu isi layanan web yang sedang dibuka pengguna." }] },
+        contents,
+      }),
+    });
+  } catch (e) {
+    throw new Error("Tidak bisa menghubungi Gemini — periksa koneksi internet. (" + (e && e.message ? e.message : e) + ")");
+  }
+  let data = null;
+  try { data = await res.json(); } catch { /* non-JSON error body */ }
+  if (!res.ok) {
+    const apiMsg = data && data.error && data.error.message ? data.error.message : "";
+    let hint = "";
+    if (res.status === 400 || res.status === 403) hint = " Periksa kunci API dan model di Pengaturan panel.";
+    else if (res.status === 429) hint = " Kuota gratis habis atau terlalu cepat — tunggu sebentar, lalu coba lagi.";
+    throw new Error("Gemini menjawab HTTP " + res.status + (apiMsg ? ": " + apiMsg : ".") + hint);
+  }
+  const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+  const text = Array.isArray(parts) ? parts.map(p => p.text || "").join("") : "";
+  if (!text) throw new Error("Gemini tidak memberi jawaban teks (mungkin tersaring pengaman). Coba rumuskan ulang pesanmu.");
+  return text;
+}
+
+async function aiSend() {
+  const text = aiInput.value.trim();
+  if (!text || aiBusy || !geminiKey()) return;
+  // The bubble shows only the user's own words; an attached screen
+  // context rides along in the payload, then detaches.
+  let payload = text;
+  if (aiCtx) payload = "[Konteks layar — " + aiCtx.title + " (" + aiCtx.url + ")]\n" + aiCtx.text + "\n\n" + text;
+  aiAddMsg("user", text);
+  aiTurns.push({ role: "user", text: payload });
+  detachAiCtx();
+  aiInput.value = "";
+  aiBusy = true;
+  paintAiBusy();
+  const typing = aiAddMsg("model", "Gemini sedang mengetik…");
+  typing.classList.add("typing");
+  try {
+    const reply = await callGemini();
+    typing.remove();
+    aiAddMsg("model", reply);
+    aiTurns.push({ role: "model", text: reply });
+  } catch (err) {
+    typing.remove();
+    // Roll the failed turn back out of the history and hand the
+    // message back to the input, so nothing the user typed is lost.
+    aiTurns.pop();
+    aiAddMsg("error", String(err && err.message ? err.message : err));
+    aiInput.value = text;
+  } finally {
+    aiBusy = false;
+    paintAiBusy();
+    aiInput.focus();
+  }
+}
+
+aiSendBtn.addEventListener("click", aiSend);
+aiInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); aiSend(); }
+});
+paintAiSetup();
 
 // YouTube adblock (v0.8.0): a small script maintained in the repo
 // (adblock/youtube.js) and injected by Rust into YouTube service

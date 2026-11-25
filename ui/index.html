@@ -37,7 +37,7 @@
       </label>
       <span id="dlPill" hidden></span>
       <button id="dlBtn" class="toolBtn" title="Riwayat unduhan" aria-label="Riwayat unduhan"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m6.5 10.5 5.5 5.5 5.5-5.5"/><path d="M4.5 20h15"/></svg></button>
-      <button id="aiBtn" class="toolBtn wide" title="Panel AI (Beta) — Muse / Gemini di samping layanan"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 13.6 10 20 12l-6.4 2L12 20.5 10.4 14 4 12l6.4-2z"/></svg><span>AI</span><span class="betaPill">BETA</span></button>
+      <button id="aiBtn" class="toolBtn wide" title="Panel AI (Beta) — chat Gemini native di samping layanan"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 13.6 10 20 12l-6.4 2L12 20.5 10.4 14 4 12l6.4-2z"/></svg><span>AI</span><span class="betaPill">BETA</span></button>
       <button id="updateBtn" class="toolBtn wide" title="Periksa update Sodium Beta">Cek update<span id="updateDot" class="updateDot" hidden></span></button>
       <span id="appVersion" class="appVersion"></span>
     </div>
@@ -51,15 +51,52 @@
     </div>
   </div>
 
-  <div id="aiHead" hidden>
-    <div class="aiTabs" role="tablist" aria-label="Pilih AI">
-      <button id="aiTabClaude" class="aiTab" role="tab">Muse</button>
-      <button id="aiTabGemini" class="aiTab" role="tab">Gemini</button>
+  <aside id="aiPanel" hidden>
+    <div class="aiPanelHead">
+      <span class="aiPanelTitle">Gemini</span>
+      <span class="betaPill">BETA</span>
+      <div class="aiHeadBtns">
+        <button id="aiCtxBtn" class="aiIconBtn" title="Lampirkan konteks layar (teks layanan aktif) ke pesan berikutnya" aria-label="Lampirkan konteks layar"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14.5 3v4.5H19"/><path d="M9.5 12.5h6M9.5 16.5h6"/></svg></button>
+        <button id="aiNewBtn" class="aiIconBtn" title="Chat baru" aria-label="Chat baru"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button id="aiSettingsBtn" class="aiIconBtn" title="Pengaturan Gemini (kunci API & model)" aria-label="Pengaturan Gemini"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M19 7h1M4 12h3M13 12h7M4 17h11M19 17h1"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="12" r="2.2"/><circle cx="17.5" cy="17" r="2.2"/></svg></button>
+        <button id="aiCloseBtn" class="aiIconBtn" title="Tutup panel AI" aria-label="Tutup panel AI"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+      </div>
     </div>
-    <span class="betaPill">BETA</span>
-    <button id="aiCtxBtn" class="aiCtxBtn" title="Ambil teks layar layanan aktif dan masukkan ke kotak chat panel">Kirim konteks layar</button>
-    <button id="aiCloseBtn" class="aiCloseBtn" title="Tutup panel AI" aria-label="Tutup panel AI"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
-  </div>
+    <div id="aiSettings" hidden>
+      <label>Kunci API Gemini
+        <input id="aiKeyInput" type="password" placeholder="Tempel kunci API dari AI Studio" autocomplete="off" spellcheck="false"/>
+      </label>
+      <div class="aiSettingsRow">
+        <label>Model
+          <select id="aiModelSel" aria-label="Model Gemini">
+            <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+          </select>
+        </label>
+        <button id="aiKeySave" class="btnPrimary">Simpan</button>
+      </div>
+      <p class="muted aiSettingsNote">Belum punya kunci? <a href="#" id="aiKeyLink">Buat kunci di Google AI Studio</a> (gratis). Kunci hanya tersimpan lokal di perangkat ini dan hanya dikirim ke Google saat kamu mengobrol.</p>
+    </div>
+    <div id="aiSetup" hidden>
+      <p><strong>Panel Gemini butuh kunci API (gratis).</strong></p>
+      <ol>
+        <li>Buka Google AI Studio dan masuk dengan akun Google.</li>
+        <li>Klik "Create API key", lalu salin kuncinya.</li>
+        <li>Tempel di Pengaturan panel ini (ikon geser di kanan atas panel), lalu Simpan.</li>
+      </ol>
+      <button id="aiSetupLink" class="btnGhost">Buka Google AI Studio</button>
+    </div>
+    <div id="aiMsgs" aria-live="polite"></div>
+    <div id="aiChip" hidden>
+      <span id="aiChipText"></span>
+      <button id="aiChipX" title="Lepas konteks" aria-label="Lepas konteks"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+    </div>
+    <div class="aiInputRow">
+      <textarea id="aiInput" rows="2" placeholder="Tulis pesan untuk Gemini... (Enter kirim, Shift+Enter baris baru)" aria-label="Pesan untuk Gemini"></textarea>
+      <button id="aiSendBtn" class="btnPrimary">Kirim</button>
+    </div>
+  </aside>
 
   <main id="welcome">
     <div class="naTile">Na</div>
@@ -266,18 +303,6 @@
     <div class="pickerFoot">
       <button id="confirmCancel" class="btnGhost">Batal</button>
       <button id="confirmOk" class="btnDanger">Hapus</button>
-    </div>
-  </div>
-
-  <div id="aiCtxPanel" class="picker" hidden>
-    <div class="pickerHead">
-      <h3>Konteks layar</h3>
-    </div>
-    <p class="muted">Konteks layar tidak bisa dimasukkan otomatis ke panel. Salin teks di bawah, klik panel AI, lalu tempel dengan Ctrl+V dan tambahkan pertanyaanmu.</p>
-    <textarea id="aiCtxText" readonly aria-label="Teks konteks layar"></textarea>
-    <div class="pickerFoot">
-      <button id="aiCtxCopy" class="btnPrimary">Salin teks</button>
-      <button id="aiCtxClose" class="btnGhost">Tutup</button>
     </div>
   </div>
 

@@ -52,8 +52,16 @@ Angka layanan aktif per halaman adalah sifat web app-nya sendiri (WhatsApp Web d
 ## 5b. Status Sodium Beta (repo ini, sejak 25 Nov 2026)
 
 Repo **aindranto/Sodium-Beta** adalah salinan eksperimental dari
-Sodium stabil v0.8.1 untuk menguji **panel AI** (Muse + Gemini
-di-dock di kanan, dengan jembatan konteks layar). Aturannya:
+Sodium stabil v0.8.1 untuk menguji **panel AI**. Bentuknya berubah
+sejak uji pertama: beta.1 memakai panel web (webview muse.ai /
+gemini.google.com di-dock di kanan + injektor DOM untuk konteks
+layar); sejak **0.9.1-beta.1** panelnya **native Gemini** — chat
+digambar UI Sodium sendiri di kolom kanan, otaknya Gemini API
+(kunci AI Studio gratis milik pengguna, disimpan lokal), dan
+konteks layar dilampirkan ke permintaan API (ekstraksi teks
+layanan aktif tetap lewat Rust). Panel web dan injektor sudah
+dicabut; Muse tetap tersedia sebagai layanan biasa dari katalog.
+Aturannya:
 
 - Repo ini eksperimen: identitas aplikasi terpisah
   (`Sodium Beta`, `id.sodium.beta`) supaya terpasang berdampingan

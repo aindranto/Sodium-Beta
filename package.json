@@ -1,6 +1,6 @@
 {
   "name": "sodium",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "description": "Sodium - a lightweight social & messaging aggregator, inspired by Ferdium. One webview alive at a time.",
   "scripts": {

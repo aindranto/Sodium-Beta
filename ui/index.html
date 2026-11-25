@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sodium Beta</title>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <aside id="sidebar">
+    <div id="activePill" hidden></div>
+    <nav id="services"></nav>
+    <button id="addBtn" title="Tambah layanan" aria-label="Tambah layanan">+</button>
+    <button id="manageBtn" title="Kelola layanan" aria-label="Kelola layanan"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M19 7h1M4 12h3M13 12h7M4 17h11M19 17h1"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="12" r="2.2"/><circle cx="17.5" cy="17" r="2.2"/></svg></button>
+  </aside>
+  <header id="topbar">
+    <div class="topLeft">
+      <button id="reloadBtn" class="toolBtn" title="Muat ulang layanan aktif" aria-label="Muat ulang layanan aktif"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 3v4h-4"/></svg></button>
+      <div id="activeName">Sodium Beta</div>
+    </div>
+    <div id="toast" hidden></div>
+    <div class="topTools">
+      <div class="zoomCtl" title="Zoom tampilan layanan">
+        <button id="zoomOut" title="Zoom out" aria-label="Perkecil zoom">−</button>
+        <button id="zoomLabel" title="Reset zoom ke 100%" aria-label="Reset zoom ke 100%">100%</button>
+        <button id="zoomIn" title="Zoom in" aria-label="Perbesar zoom">+</button>
+      </div>
+      <label class="topAlive" title="Berapa layanan non-pin yang boleh hidup bersamaan. 1 = paling ringan. ∞ = semua hidup (kayak Ferdium, RAM naik per layanan).">
+        Hidup bareng
+        <select id="maxAlive" aria-label="Jumlah layanan yang boleh hidup bersamaan">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="5">5</option>
+          <option value="0">∞</option>
+        </select>
+      </label>
+      <span id="dlPill" hidden></span>
+      <button id="dlBtn" class="toolBtn" title="Riwayat unduhan" aria-label="Riwayat unduhan"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"/><path d="m6.5 10.5 5.5 5.5 5.5-5.5"/><path d="M4.5 20h15"/></svg></button>
+      <button id="aiBtn" class="toolBtn wide" title="Panel AI (Beta) — Muse / Gemini di samping layanan"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 13.6 10 20 12l-6.4 2L12 20.5 10.4 14 4 12l6.4-2z"/></svg><span>AI</span><span class="betaPill">BETA</span></button>
+      <button id="updateBtn" class="toolBtn wide" title="Periksa update Sodium Beta">Cek update<span id="updateDot" class="updateDot" hidden></span></button>
+      <span id="appVersion" class="appVersion"></span>
+    </div>
+  </header>
+  <div id="linkBar" hidden>
+    <span id="linkUrlText"></span>
+    <div class="linkBtns">
+      <button id="linkCopy">Salin link</button>
+      <button id="linkExternal">Buka di browser</button>
+      <button id="linkClose" title="Tutup popup" aria-label="Tutup popup">✕</button>
+    </div>
+  </div>
+
+  <div id="aiHead" hidden>
+    <div class="aiTabs" role="tablist" aria-label="Pilih AI">
+      <button id="aiTabClaude" class="aiTab" role="tab">Muse</button>
+      <button id="aiTabGemini" class="aiTab" role="tab">Gemini</button>
+    </div>
+    <span class="betaPill">BETA</span>
+    <button id="aiCtxBtn" class="aiCtxBtn" title="Ambil teks layar layanan aktif dan masukkan ke kotak chat panel">Kirim konteks layar</button>
+    <button id="aiCloseBtn" class="aiCloseBtn" title="Tutup panel AI" aria-label="Tutup panel AI"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button>
+  </div>
+
+  <main id="welcome">
+    <div class="naTile">Na</div>
+    <h1>Sodium Beta</h1>
+    <p class="tagline">Semua layanan chat dan sosial Anda dalam satu jendela yang ringan.</p>
+    <div class="featureCards">
+      <div class="fCard">
+        <div class="fIcon"><svg viewBox="0 0 24 24" width="20" height="20" fill="#f5c518" aria-hidden="true"><path d="M13 2 4.5 13.5H11L9.8 22l8.7-11.5H12L13 2z"/></svg></div>
+        <div class="fTitle">Ringan</div>
+        <p>Hanya layanan yang sedang dibuka yang berjalan. Layanan lain mati sepenuhnya, sehingga pemakaian RAM tetap rendah.</p>
+      </div>
+      <div class="fCard">
+        <div class="fIcon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f5c518" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5"/><circle cx="17" cy="9" r="2.4"/><path d="M16.2 14.6c2.2.3 3.7 1.7 4.2 4.1"/></svg></div>
+        <div class="fTitle">Banyak akun</div>
+        <p>Tambahkan layanan yang sama berkali-kali untuk akun yang berbeda, masing-masing dengan sesi masuknya sendiri.</p>
+      </div>
+      <div class="fCard">
+        <div class="fIcon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#f5c518" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16v-5a6 6 0 1 1 12 0v5l1.5 3h-15L6 16z"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></div>
+        <div class="fTitle">Notifikasi Windows</div>
+        <p>Pesan masuk tampil sebagai notifikasi Windows dari layanannya sendiri, sama seperti saat dibuka di browser.</p>
+      </div>
+    </div>
+    <p class="muted welcomeHint">Pilih layanan di sidebar untuk memulai · Ctrl+1–9 untuk berpindah cepat · Alt+Space ganti cepat · Klik + untuk menambah layanan</p>
+    <p class="muted" id="ramNote"></p>
+  </main>
+
+  <div id="scrim" hidden></div>
+  <div id="pickerPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Pilih layanan</h3>
+      <input id="pickerSearch" placeholder="Cari layanan..." aria-label="Cari layanan"/>
+    </div>
+    <div id="pickerGrid" class="pickerGrid"></div>
+    <div class="pickerCustom">
+      <h4>Atau tambah custom URL</h4>
+      <div class="customRow">
+        <input id="cName" placeholder="Nama, mis. WhatsApp 2" aria-label="Nama layanan"/>
+        <input id="cUrl" placeholder="https://..." aria-label="Alamat URL layanan"/>
+        <button id="cUploadBtn" class="btnGhost" title="Upload gambar ikon (.jpg / .jpeg / .png / .ico)">Upload ikon</button>
+        <img id="cIconPreview" class="iconPreview" title="Klik untuk membatalkan gambar" hidden/>
+        <input id="cIconFile" type="file" accept=".jpg,.jpeg,.png,.ico,image/jpeg,image/png,image/x-icon" hidden/>
+        <button id="customAdd" class="btnPrimary">Tambah custom</button>
+      </div>
+      <div id="customGlyphs" class="glyphGrid"></div>
+    </div>
+    <div class="pickerFoot">
+      <button id="pickerSkip" class="btnGhost">Lewati</button>
+    </div>
+  </div>
+
+<div id="ctxPanel" class="picker" hidden>
+    <h3 id="ctxTitle">Layanan</h3>
+    <div class="panelBtns col">
+      <button id="ctxPin" class="btnPrimary">Pin (tetap hidup buat notif)</button>
+      <button id="ctxDisable" class="btnGhost">Nonaktifkan layanan</button>
+      <button id="ctxManage" class="btnGhost">Kelola layanan</button>
+      <button id="ctxAdblock" class="btnGhost" hidden>Adblock YouTube</button>
+    </div>
+  </div>
+
+  <div id="managePanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Kelola layanan</h3>
+      <button id="manageAdd" class="btnPrimary">Tambah layanan</button>
+    </div>
+    <div class="mgSettings">
+      <label class="mgSetItem"><span>Tampilkan nama di ikon sidebar</span><input type="checkbox" id="showNamesToggle"/></label>
+      <label class="mgSetItem"><span>Ukuran ikon</span>
+        <select id="iconSizeSel" aria-label="Ukuran ikon sidebar">
+          <option value="40">Kecil</option>
+          <option value="48">Sedang</option>
+          <option value="56">Besar</option>
+        </select>
+      </label>
+    </div>
+    <div id="manageList" class="manageList"></div>
+    <div class="pickerFoot">
+      <button id="exportBtn" class="btnGhost">Ekspor</button>
+      <button id="importBtn" class="btnGhost">Impor</button>
+      <button id="manageClose" class="btnGhost">Tutup</button>
+    </div>
+  </div>
+
+  <div id="dlPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Unduhan</h3>
+    </div>
+    <div id="dlList" class="manageList"></div>
+    <div class="pickerFoot">
+      <button id="dlClose" class="btnGhost">Tutup</button>
+    </div>
+  </div>
+
+  <div id="updatePanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3 id="updateTitle">Update tersedia</h3>
+    </div>
+    <div id="updateBody" class="updateBody"></div>
+    <div class="pickerFoot">
+      <button id="updateBrowser" class="btnGhost">Buka di browser</button>
+      <button id="updateLater" class="btnGhost">Nanti saja</button>
+      <button id="updateDownload" class="btnPrimary">Unduh installer</button>
+      <button id="updateInstall" class="btnPrimary" hidden>Jalankan installer</button>
+    </div>
+  </div>
+
+  <div id="quickPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Ganti layanan</h3>
+      <input id="quickSearch" placeholder="Ketik nama layanan..." aria-label="Cari layanan"/>
+    </div>
+    <div id="quickList"></div>
+  </div>
+
+  <div id="groupPanel" class="picker" hidden>
+    <h3 id="groupTitle">Kelompok</h3>
+    <p class="muted">Hidupkan semua layanan dalam kelompok ini sekaligus. Batas "Hidup bareng" tetap berlaku seperti biasa.</p>
+    <div class="pickerFoot">
+      <button id="groupCancel" class="btnGhost">Batal</button>
+      <button id="groupStart" class="btnPrimary">Mulai semua</button>
+    </div>
+  </div>
+
+  <div id="editPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Edit layanan</h3>
+      <span id="editPreview" class="tileIcon"></span>
+    </div>
+    <div class="editScroll">
+      <div class="mgFormGrid">
+        <label>Nama layanan <input id="editName" maxlength="40"/></label>
+        <label>URL <input id="editUrl" spellcheck="false"/></label>
+        <label>Kelompok <input id="editGroup" maxlength="30" list="groupNames" placeholder="mis. Kerja (boleh kosong)"/></label>
+      </div>
+      <p id="editWarn" class="mgWarn" hidden></p>
+      <div class="editSection">
+        <div class="editSecLabel">Ikon</div>
+        <div class="iconModes" id="editModes">
+          <button type="button" data-mode="brand" id="modeBrand">Logo brand</button>
+          <button type="button" data-mode="glyph">Glyph</button>
+          <button type="button" data-mode="text">Teks</button>
+          <button type="button" data-mode="image" id="modeImage">Gambar</button>
+        </div>
+        <div id="glyphGrid" class="glyphGrid"></div>
+        <input id="editIconText" maxlength="2" placeholder="Inisial, mis. WA" aria-label="Teks ikon, 1 sampai 2 huruf"/>
+        <div class="imgRow">
+          <img id="editImgPreview" class="iconPreview" hidden/>
+          <button id="editUploadBtn" class="btnGhost">Upload gambar (.jpg / .png / .ico)</button>
+          <button id="editRemoveImg" class="btnDanger" hidden>Hapus gambar</button>
+          <input id="editIconFile" type="file" accept=".jpg,.jpeg,.png,.ico,image/jpeg,image/png,image/x-icon" hidden/>
+        </div>
+        <div id="hueRow" class="hueRow" hidden>
+          <span>Hue</span>
+          <input id="hueRange" type="range" min="-180" max="180" step="1" value="0" aria-label="Geser hue warna ikon gambar"/>
+          <span id="hueVal" class="hueVal">0</span>
+          <button id="hueReset" class="btnGhost">Reset</button>
+        </div>
+        <p id="editIconMsg" class="iconMsg"></p>
+      </div>
+      <div class="colorRow">
+        <span>Warna tile</span>
+        <div id="editTilePalette" class="swatches"></div>
+      </div>
+      <div class="colorRow" id="editLogoColorRow">
+        <span>Warna logo</span>
+        <div id="editLogoPalette" class="swatches"></div>
+      </div>
+      <div class="editToggles">
+        <label class="mgSetItem"><input type="checkbox" id="editPin"/><span>Pin (tetap hidup buat notif)</span></label>
+        <label class="mgSetItem"><input type="checkbox" id="editDisabled"/><span>Nonaktifkan sementara</span></label>
+      </div>
+      <button id="editAdblockBtn" class="btnGhost" hidden>Adblock YouTube</button>
+    </div>
+    <div class="pickerFoot">
+      <button id="editDuplicate" class="btnGhost footLeft">Duplikat</button>
+      <button id="editCancel" class="btnGhost">Batal</button>
+      <button id="editSave" class="btnPrimary">Simpan</button>
+    </div>
+  </div>
+
+  <div id="adblockPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Adblock YouTube</h3>
+    </div>
+    <div class="editScroll">
+      <label class="mgSetItem adblockToggleRow"><input type="checkbox" id="adblockToggle"/><span>Adblock aktif untuk layanan YouTube</span></label>
+      <div class="adblockMeta">
+        <div><span>Versi skrip</span><strong id="adblockVersion">-</strong></div>
+        <div><span>Terakhir dicek</span><strong id="adblockChecked">-</strong></div>
+      </div>
+      <p class="muted">Skrip menyembunyikan slot iklan dan melewati iklan video (skip / fast-forward). Tidak 100%: sebagian iklan YouTube datang dari domain yang sama dengan videonya, dan YouTube aktif mendeteksi adblock — matikan saklar di atas bila YouTube mulai rewel. Perubahan berlaku untuk layanan YouTube yang dibuka setelah ini; yang sedang hidup tidak terpengaruh.</p>
+    </div>
+    <div class="pickerFoot">
+      <button id="adblockCheckBtn" class="btnGhost footLeft">Periksa update</button>
+      <button id="adblockClose" class="btnPrimary">Tutup</button>
+    </div>
+  </div>
+
+  <div id="confirmPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3 id="confirmTitle">Hapus layanan</h3>
+    </div>
+    <p id="confirmBody" class="confirmBody"></p>
+    <div class="pickerFoot">
+      <button id="confirmCancel" class="btnGhost">Batal</button>
+      <button id="confirmOk" class="btnDanger">Hapus</button>
+    </div>
+  </div>
+
+  <div id="aiCtxPanel" class="picker" hidden>
+    <div class="pickerHead">
+      <h3>Konteks layar</h3>
+    </div>
+    <p class="muted">Konteks layar tidak bisa dimasukkan otomatis ke panel. Salin teks di bawah, klik panel AI, lalu tempel dengan Ctrl+V dan tambahkan pertanyaanmu.</p>
+    <textarea id="aiCtxText" readonly aria-label="Teks konteks layar"></textarea>
+    <div class="pickerFoot">
+      <button id="aiCtxCopy" class="btnPrimary">Salin teks</button>
+      <button id="aiCtxClose" class="btnGhost">Tutup</button>
+    </div>
+  </div>
+
+  <datalist id="groupNames"></datalist>
+
+<script src="icons.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

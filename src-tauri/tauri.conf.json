@@ -1,0 +1,35 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Sodium Beta",
+  "version": "0.9.0",
+  "identifier": "id.sodium.beta",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "category": "SocialNetworking",
+    "shortDescription": "All your social & messaging services in one place - the light way.",
+    "longDescription": "Sodium is a clean-room, lightweight rebuild of the Ferdium concept: every service you add, only one (or your pinned ones) alive at a time, so RAM stays flat no matter how many services you register."
+  }
+}

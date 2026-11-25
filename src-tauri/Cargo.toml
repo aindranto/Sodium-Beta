@@ -1,0 +1,29 @@
+[package]
+name = "sodium"
+version = "0.9.0"
+description = "Sodium Beta - lightweight social aggregator inspired by Ferdium (experimental AI panel build)"
+authors = ["Agung Indra Oktoverianto"]
+edition = "2021"
+
+[lib]
+name = "sodium_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["unstable", "tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rfd = "0.15"
+tauri-plugin-single-instance = "2"
+tauri-plugin-global-shortcut = "2"
+
+# Windows-only: raw WebView2 access for the AI panel's screen-context
+# bridge (ExecuteScript with a result). Versions match what Tauri
+# 2.12.7 already resolves in Cargo.lock, so the lock barely moves.
+[target.'cfg(windows)'.dependencies]
+webview2-com = "0.39"
+windows-core = "0.62"
+

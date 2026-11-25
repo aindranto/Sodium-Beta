@@ -1,0 +1,14 @@
+{
+  "name": "sodium",
+  "version": "0.9.0",
+  "private": true,
+  "description": "Sodium - a lightweight social & messaging aggregator, inspired by Ferdium. One webview alive at a time.",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
